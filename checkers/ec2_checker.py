@@ -1,8 +1,8 @@
 """
 checkers/ec2_checker.py
-Amazon EC2 보안 점검 — 담당: 김혜림
+Amazon EC2 보안 점검
 
-점검 항목 (자료조사 기준):
+점검 항목:
   EC2-01  보안 그룹 인바운드 규칙 과다 허용 (0.0.0.0/0)
   EC2-02  IMDSv2 미강제 (HttpTokens != required)
   EC2-03  EBS 볼륨 암호화 누락

@@ -1,8 +1,8 @@
 """
 checkers/cloudwatch_checker.py
-Amazon CloudWatch 보안 점검 — 담당: 김재현 (2022243109)
+Amazon CloudWatch 보안 점검 
 
-점검 항목 (자료조사 기준):
+점검 항목:
   CW-01  중요 보안 이벤트 지표 필터 및 경보 누락 (루트 계정 사용)
   CW-02  CloudWatch Logs 그룹 KMS 암호화 미적용
   CW-03  로그 그룹 보존 주기 무제한 설정 (Never Expire)

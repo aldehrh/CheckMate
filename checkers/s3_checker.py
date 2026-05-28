@@ -1,8 +1,8 @@
 """
 checkers/s3_checker.py
-Amazon S3 보안 점검 — 담당: 김재현 (2022243109)
+Amazon S3 보안 점검
 
-점검 항목 (자료조사 기준):
+점검 항목:
   S3-01  버킷 퍼블릭 접근 차단 설정 (Block Public Access 4개 항목)
   S3-02  버킷 정책 퍼블릭 허용 여부 (Principal=*)
   S3-03  서버 측 암호화(SSE) 미적용

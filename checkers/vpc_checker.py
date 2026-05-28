@@ -1,8 +1,8 @@
 """
 checkers/vpc_checker.py
-Amazon VPC 보안 점검 — 담당: 김장순 (2021320022)
+Amazon VPC 보안 점검 
 
-점검 항목 (자료조사 기준):
+점검 항목:
   VPC-01  라우팅 테이블에 IGW 누락 (퍼블릭 서브넷인데 IGW 경로 없음)
   VPC-02  퍼블릭 IP 자동 할당 비활성화된 퍼블릭 서브넷
   VPC-03  NAT 게이트웨이 프라이빗 서브넷 오배치

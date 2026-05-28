@@ -1,6 +1,6 @@
 """
 checkers/rds_checker.py
-Amazon RDS 보안 점검 — 담당: 박민서 (2023243076)
+Amazon RDS 보안 점검
 
 점검 항목:
   RDS-01  퍼블릭 접근 허용 여부

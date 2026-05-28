@@ -1,8 +1,8 @@
 """
 checkers/cloudtrail_checker.py
-AWS CloudTrail 보안 점검 — 담당: 김혜림
+AWS CloudTrail 보안 점검
 
-점검 항목 (자료조사 기준):
+점검 항목:
   CT-01  조직(Organizations) 추적 미설정 (IsOrganizationTrail)
   CT-02  S3 Object Lock(WORM) 미설정
   CT-03  데이터 이벤트 추적 누락 (AdvancedEventSelectors)

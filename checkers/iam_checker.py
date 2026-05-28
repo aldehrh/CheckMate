@@ -1,8 +1,8 @@
 """
 checkers/iam_checker.py
-Amazon IAM 보안 점검 — 담당: 김장순 (2021320022)
+Amazon IAM 보안 점검
 
-점검 항목 (자료조사 기준):
+점검 항목:
   IAM-01  루트 계정 일상적 사용 여부
   IAM-02  액세스 키 90일 이상 방치
   IAM-03  사용자 MFA 미설정
