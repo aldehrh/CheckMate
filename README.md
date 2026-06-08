@@ -70,6 +70,7 @@ aws_security_checker/
 ```bash
 # 1. git clone 
 git clone https://github.com/aldehrh/AWS-CheckMate.git
+cd AWS-CheckMate
 
 # 2. 의존성 설치
 pip install -r requirements.txt
