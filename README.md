@@ -64,7 +64,6 @@ aws_security_checker/
 | VPC | VPC-02 | 퍼블릭 IP 자동 할당 비활성화 | MEDIUM |
 | VPC | VPC-03 | NAT 게이트웨이 프라이빗 서브넷 오배치 | MEDIUM |
 | VPC | VPC-04 | NACL 아웃바운드 전체 차단 | MEDIUM |
-| VPC | VPC-05 | VPC CIDR 대역 중복 | MEDIUM |
 
 ## 설치 및 실행
 
