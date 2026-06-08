@@ -68,26 +68,29 @@ aws_security_checker/
 ## 설치 및 실행
 
 ```bash
-# 1. 의존성 설치
+# 1. git clone 
+git clone https://github.com/aldehrh/AWS-CheckMate.git
+
+# 2. 의존성 설치
 pip install -r requirements.txt
 
-# 2. AWS 자격 증명 설정
+# 3. AWS 자격 증명 설정
 aws configure
 # AWS Access Key ID     : <액세스 키>
 # AWS Secret Access Key : <시크릿 키>
 # Default region name   : ap-northeast-2
 # Default output format : json
 
-# 3. 전체 서비스 점검 + 브라우저 자동 오픈
+# 4. 전체 서비스 점검 + 브라우저 자동 오픈
 python main.py
 
-# 4. 특정 서비스만 점검
+# 5. 특정 서비스만 점검
 python main.py --services RDS S3 IAM
 
-# 5. 리전 직접 지정
+# 6. 리전 직접 지정
 python main.py --region us-east-1
 
-# 6. 웹 포트 변경 (기본값: 5000)
+# 7. 웹 포트 변경 (기본값: 5000)
 python main.py --port 8080
 ```
 
