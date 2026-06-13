@@ -13,7 +13,7 @@ Amazon RDS 보안 점검
 """
 
 import boto3
-from .base import BaseChecker, ServiceReport, HIGH, MEDIUM, PASS, FAIL, WARN
+from .base import BaseChecker, ServiceReport, HIGH, MEDIUM, LOW, PASS, FAIL, WARN
 
 WEAK_USERNAMES       = {"admin", "root", "postgres", "mysql", "oracle", "sa", "master", "user", "test", "db"}
 BACKUP_WARN_DAYS     = 7
@@ -82,7 +82,7 @@ class RDSChecker(BaseChecker):
         kms       = db.get("KmsKeyId", "N/A")
         return self._make_result(
             check_id="RDS-03", name="저장 데이터 암호화 미적용",
-            severity=HIGH, resource_id=db_id,
+            severity=MEDIUM, resource_id=db_id,
             status=PASS if encrypted else FAIL,
             detail=f"StorageEncrypted={encrypted}, KmsKeyId={kms}",
             remediation=(
@@ -134,7 +134,7 @@ class RDSChecker(BaseChecker):
             status, detail = PASS, f"BackupRetentionPeriod={period}일"
         return self._make_result(
             check_id="RDS-05", name="자동 백업 보존 기간",
-            severity=MEDIUM, resource_id=db_id,
+            severity=LOW, resource_id=db_id,
             status=status, detail=detail,
             remediation=(
                 f"aws rds modify-db-instance --db-instance-identifier {db_id} "
@@ -150,7 +150,7 @@ class RDSChecker(BaseChecker):
         if not pg_name or pg_name.startswith("default."):
             return self._make_result(
                 check_id="RDS-06", name="SSL/TLS 전송 암호화",
-                severity=MEDIUM, resource_id=db_id, status=WARN,
+                severity=LOW, resource_id=db_id, status=WARN,
                 detail=f"기본 파라미터 그룹 사용 중 ({pg_name}) → SSL 강제 설정 불가",
                 remediation="커스텀 파라미터 그룹 생성 후 MySQL: require_secure_transport=ON / PostgreSQL: rds.force_ssl=1",
             )
@@ -166,7 +166,7 @@ class RDSChecker(BaseChecker):
             ssl_on     = value in ("1", "ON", "on", "true")
             return self._make_result(
                 check_id="RDS-06", name="SSL/TLS 전송 암호화",
-                severity=MEDIUM, resource_id=db_id,
+                severity=LOW, resource_id=db_id,
                 status=PASS if ssl_on else FAIL,
                 detail=f"{param_name}={value}",
                 remediation=(
@@ -177,7 +177,7 @@ class RDSChecker(BaseChecker):
         except Exception as e:
             return self._make_result(
                 check_id="RDS-06", name="SSL/TLS 전송 암호화",
-                severity=MEDIUM, resource_id=db_id, status=WARN,
+                severity=LOW, resource_id=db_id, status=WARN,
                 detail=f"파라미터 조회 실패: {e}",
                 remediation="IAM 권한(rds:DescribeDBParameters) 확인 필요",
             )
@@ -199,7 +199,7 @@ class RDSChecker(BaseChecker):
 
         return self._make_result(
             check_id="RDS-07", name="CloudWatch 로그 설정",
-            severity=MEDIUM, resource_id=db_id,
+            severity=LOW, resource_id=db_id,
             status=status, detail=detail,
             remediation=(
                 f"aws rds modify-db-instance --db-instance-identifier {db_id} "

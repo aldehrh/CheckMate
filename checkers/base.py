@@ -67,7 +67,6 @@ class BaseChecker:
         self.region = region
 
     def run(self) -> ServiceReport:
-        """각 팀원이 오버라이드해서 구현. ServiceReport를 반환해야 함."""
         raise NotImplementedError(f"{self.__class__.__name__}.run() 미구현")
 
     def _make_result(

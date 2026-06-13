@@ -12,7 +12,8 @@ Amazon S3 보안 점검
 """
 
 import json, boto3
-from .base import BaseChecker, ServiceReport, HIGH, MEDIUM, PASS, FAIL, WARN
+from botocore.exceptions import ClientError
+from .base import BaseChecker, ServiceReport, HIGH, MEDIUM, LOW, PASS, FAIL, WARN
 
 
 class S3Checker(BaseChecker):
@@ -24,7 +25,18 @@ class S3Checker(BaseChecker):
 
         try:
             buckets = s3.list_buckets().get("Buckets", [])
-        except Exception:
+        except Exception as e:
+            report.results.append(self._make_result(
+                "S3-00", "버킷 목록 조회", HIGH, "s3",
+                WARN, f"조회 실패: {e}", "s3:ListAllMyBuckets 권한 확인"
+            ))
+            return report
+
+        if not buckets:
+            report.results.append(self._make_result(
+                "S3-00", "버킷 존재 여부", HIGH, "s3",
+                PASS, "생성된 S3 버킷이 없음"
+            ))
             return report
 
         for b in buckets:
@@ -53,21 +65,51 @@ class S3Checker(BaseChecker):
                 else f"BlockPublicAcls={bpa}, IgnorePublicAcls={ipa}, "
                      f"BlockPublicPolicy={bpp}, RestrictPublicBuckets={rpb}"
             )
-            return self._make_result("S3-01","퍼블릭 액세스 차단 설정",HIGH,name,
-                PASS if all_ok else FAIL, detail,
-                f"aws s3api put-public-access-block --bucket {name} "
-                "--public-access-block-configuration "
-                "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
-                if not all_ok else "조치 불필요")
-        except s3.exceptions.NoSuchPublicAccessBlockConfiguration:
-            return self._make_result("S3-01","퍼블릭 액세스 차단 설정",HIGH,name,
-                FAIL,"퍼블릭 액세스 차단 설정 자체가 없음 (모든 옵션 꺼진 상태)",
-                f"aws s3api put-public-access-block --bucket {name} "
-                "--public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,"
-                "BlockPublicPolicy=true,RestrictPublicBuckets=true")
+            return self._make_result(
+                check_id="S3-01",
+                name="퍼블릭 액세스 차단 설정",
+                severity=HIGH,
+                resource_id=name,
+                status=PASS if all_ok else FAIL,
+                detail=detail,
+                remediation="aws s3api put-public-access-block --bucket " + name + " "
+                            "--public-access-block-configuration "
+                            "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+                            if not all_ok else "조치 불필요"
+            )
+        except ClientError as e:
+            code = e.response.get("Error", {}).get("Code", "")
+            if code in ("NoSuchPublicAccessBlockConfiguration", "NoSuchConfiguration"):
+                return self._make_result(
+                    check_id="S3-01",
+                    name="퍼블릭 액세스 차단 설정",
+                    severity=HIGH,
+                    resource_id=name,
+                    status=FAIL,
+                    detail="퍼블릭 액세스 차단 설정 자체가 없음 (모든 옵션 꺼진 상태)",
+                    remediation=f"aws s3api put-public-access-block --bucket {name} "
+                                "--public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,"
+                                "BlockPublicPolicy=true,RestrictPublicBuckets=true"
+                )
+            return self._make_result(
+                check_id="S3-01",
+                name="퍼블릭 액세스 차단 설정",
+                severity=HIGH,
+                resource_id=name,
+                status=WARN,
+                detail=f"조회 실패: {code}",
+                remediation="s3:GetBucketPublicAccessBlock 권한 확인"
+            )
         except Exception as e:
-            return self._make_result("S3-01","퍼블릭 액세스 차단 설정",HIGH,name,
-                WARN,f"조회 실패: {e}","s3:GetBucketPublicAccessBlock 권한 확인")
+            return self._make_result(
+                check_id="S3-01",
+                name="퍼블릭 액세스 차단 설정",
+                severity=HIGH,
+                resource_id=name,
+                status=WARN,
+                detail=f"조회 실패: {e}",
+                remediation="s3:GetBucketPublicAccessBlock 권한 확인"
+            )
 
     # S3-02 ──────────────────────────────────────────
     def _check_bucket_policy(self, s3, name):
@@ -83,17 +125,53 @@ class S3Checker(BaseChecker):
                 if action == "*" or (isinstance(action, list) and "*" in action):
                     vulns.append(f"규칙{i+1}: Action=* (모든 작업 허용)")
             if vulns:
-                return self._make_result("S3-02","버킷 정책 퍼블릭 허용",HIGH,name,
-                    FAIL,"; ".join(vulns),
-                    f"aws s3api get-bucket-policy --bucket {name}  # 정책 확인 후 Principal=* 규칙 제거")
-            return self._make_result("S3-02","버킷 정책 퍼블릭 허용",HIGH,name,
-                PASS,"퍼블릭 허용 정책 없음")
-        except s3.exceptions.NoSuchBucketPolicy:
-            return self._make_result("S3-02","버킷 정책 퍼블릭 허용",HIGH,name,
-                PASS,"버킷 정책 없음 (기본 차단 상태)")
+                return self._make_result(
+                    check_id="S3-02",
+                    name="버킷 정책 퍼블릭 허용",
+                    severity=HIGH,
+                    resource_id=name,
+                    status=FAIL,
+                    detail="; ".join(vulns),
+                    remediation=f"aws s3api get-bucket-policy --bucket {name}  # 정책 확인 후 Principal=* 규칙 제거"
+                )
+            return self._make_result(
+                check_id="S3-02",
+                name="버킷 정책 퍼블릭 허용",
+                severity=HIGH,
+                resource_id=name,
+                status=PASS,
+                detail="퍼블릭 허용 정책 없음"
+            )
+        except ClientError as e:
+            code = e.response.get("Error", {}).get("Code", "")
+            if code == "NoSuchBucketPolicy":
+                return self._make_result(
+                    check_id="S3-02",
+                    name="버킷 정책 퍼블릭 허용",
+                    severity=HIGH,
+                    resource_id=name,
+                    status=PASS,
+                    detail="버킷 정책 없음 (기본 차단 상태)"
+                )
+            return self._make_result(
+                check_id="S3-02",
+                name="버킷 정책 퍼블릭 허용",
+                severity=HIGH,
+                resource_id=name,
+                status=WARN,
+                detail=f"조회 실패: {code}",
+                remediation="s3:GetBucketPolicy 권한 확인"
+            )
         except Exception as e:
-            return self._make_result("S3-02","버킷 정책 퍼블릭 허용",HIGH,name,
-                WARN,f"조회 실패: {e}","s3:GetBucketPolicy 권한 확인")
+            return self._make_result(
+                check_id="S3-02",
+                name="버킷 정책 퍼블릭 허용",
+                severity=HIGH,
+                resource_id=name,
+                status=WARN,
+                detail=f"조회 실패: {e}",
+                remediation="s3:GetBucketPolicy 권한 확인"
+            )
 
     # S3-03 ──────────────────────────────────────────
     def _check_encryption(self, s3, name):
@@ -102,16 +180,47 @@ class S3Checker(BaseChecker):
             algo  = rules[0]["ApplyServerSideEncryptionByDefault"]["SSEAlgorithm"]
             kms   = rules[0]["ApplyServerSideEncryptionByDefault"].get("KMSMasterKeyID","Default")
             detail = f"암호화 알고리즘: {algo}" + (f", KMS Key: {kms}" if algo == "aws:kms" else "")
-            return self._make_result("S3-03","서버 측 암호화(SSE) 설정",HIGH,name,PASS,detail)
-        except s3.exceptions.ServerSideEncryptionConfigurationNotFoundError:
-            return self._make_result("S3-03","서버 측 암호화(SSE) 설정",HIGH,name,
-                FAIL,"SSE 미설정 — 데이터 평문 저장 위험",
-                f"aws s3api put-bucket-encryption --bucket {name} "
-                "--server-side-encryption-configuration "
-                "'{\"Rules\":[{\"ApplyServerSideEncryptionByDefault\":{\"SSEAlgorithm\":\"aws:kms\"}}]}'")
+            return self._make_result(
+                check_id="S3-03",
+                name="서버 측 암호화(SSE) 설정",
+                severity=MEDIUM,
+                resource_id=name,
+                status=PASS,
+                detail=detail
+            )
+        except ClientError as e:
+            code = e.response.get("Error", {}).get("Code", "")
+            if code == "ServerSideEncryptionConfigurationNotFoundError":
+                return self._make_result(
+                    check_id="S3-03",
+                    name="서버 측 암호화(SSE) 설정",
+                    severity=MEDIUM,
+                    resource_id=name,
+                    status=FAIL,
+                    detail="SSE 미설정 — 데이터 평문 저장 위험",
+                    remediation=f"aws s3api put-bucket-encryption --bucket {name} "
+                                "--server-side-encryption-configuration "
+                                "'{\"Rules\":[{\"ApplyServerSideEncryptionByDefault\":{\"SSEAlgorithm\":\"aws:kms\"}}]}'"
+                )
+            return self._make_result(
+                check_id="S3-03",
+                name="서버 측 암호화(SSE) 설정",
+                severity=MEDIUM,
+                resource_id=name,
+                status=WARN,
+                detail=f"조회 실패: {code}",
+                remediation="s3:GetEncryptionConfiguration 권한 확인"
+            )
         except Exception as e:
-            return self._make_result("S3-03","서버 측 암호화(SSE) 설정",HIGH,name,
-                WARN,f"조회 실패: {e}","s3:GetEncryptionConfiguration 권한 확인")
+            return self._make_result(
+                check_id="S3-03",
+                name="서버 측 암호화(SSE) 설정",
+                severity=MEDIUM,
+                resource_id=name,
+                status=WARN,
+                detail=f"조회 실패: {e}",
+                remediation="s3:GetEncryptionConfiguration 권한 확인"
+            )
 
     # S3-04 ──────────────────────────────────────────
     def _check_versioning(self, s3, name):
@@ -120,15 +229,33 @@ class S3Checker(BaseChecker):
             status = resp.get("Status","Disabled")
             mfa    = resp.get("MFADelete","Disabled")
             if status == "Enabled":
-                return self._make_result("S3-04","버전 관리 설정",MEDIUM,name,
-                    PASS,f"버전 관리 활성화 (MFA Delete: {mfa})")
-            return self._make_result("S3-04","버전 관리 설정",MEDIUM,name,
-                WARN,f"버전 관리 {status} — 랜섬웨어·실수 삭제 시 복구 불가",
-                f"aws s3api put-bucket-versioning --bucket {name} "
-                "--versioning-configuration Status=Enabled")
+                return self._make_result(
+                    check_id="S3-04",
+                    name="버전 관리 설정",
+                    severity=LOW,
+                    resource_id=name,
+                    status=PASS,
+                    detail=f"버전 관리 활성화 (MFA Delete: {mfa})"
+                )
+            return self._make_result(
+                check_id="S3-04",
+                name="버전 관리 설정",
+                severity=LOW,
+                resource_id=name,
+                status=WARN,
+                detail=f"버전 관리 {status} — 랜섬웨어·실수 삭제 시 복구 불가",
+                remediation=f"aws s3api put-bucket-versioning --bucket {name} --versioning-configuration Status=Enabled"
+            )
         except Exception as e:
-            return self._make_result("S3-04","버전 관리 설정",MEDIUM,name,
-                WARN,f"조회 실패: {e}","s3:GetBucketVersioning 권한 확인")
+            return self._make_result(
+                check_id="S3-04",
+                name="버전 관리 설정",
+                severity=LOW,
+                resource_id=name,
+                status=WARN,
+                detail=f"조회 실패: {e}",
+                remediation="s3:GetBucketVersioning 권한 확인"
+            )
 
     # S3-05 ──────────────────────────────────────────
     def _check_logging(self, s3, name):
@@ -137,17 +264,36 @@ class S3Checker(BaseChecker):
             if "LoggingEnabled" in resp:
                 target = resp["LoggingEnabled"].get("TargetBucket","?")
                 prefix = resp["LoggingEnabled"].get("TargetPrefix","없음")
-                return self._make_result("S3-04","서버 액세스 로깅",MEDIUM,name,
-                    PASS,f"로깅 활성화 → 저장 버킷: {target}, 폴더: {prefix}")
-            return self._make_result("S3-05","서버 액세스 로깅",MEDIUM,name,
-                WARN,"로깅 비활성화 — 침해 사고 시 접근 기록 추적 불가",
-                f"로그 저장용 별도 버킷 생성 후:\n"
-                f"aws s3api put-bucket-logging --bucket {name} "
-                "--bucket-logging-status '{\"LoggingEnabled\":{\"TargetBucket\":\"<log-bucket>\","
-                f"\"TargetPrefix\":\"{name}/\"}}'")
+                return self._make_result(
+                    check_id="S3-05",
+                    name="서버 액세스 로깅",
+                    severity=LOW,
+                    resource_id=name,
+                    status=PASS,
+                    detail=f"로깅 활성화 → 저장 버킷: {target}, 폴더: {prefix}"
+                )
+            return self._make_result(
+                check_id="S3-05",
+                name="서버 액세스 로깅",
+                severity=LOW,
+                resource_id=name,
+                status=WARN,
+                detail="로깅 비활성화 — 침해 사고 시 접근 기록 추적 불가",
+                remediation=f"로그 저장용 별도 버킷 생성 후:\n"
+                            f"aws s3api put-bucket-logging --bucket {name} "
+                            "--bucket-logging-status '{\"LoggingEnabled\":{\"TargetBucket\":\"<log-bucket>\","
+                            f"\"TargetPrefix\":\"{name}/\"}}'"
+            )
         except Exception as e:
-            return self._make_result("S3-05","서버 액세스 로깅",MEDIUM,name,
-                WARN,f"조회 실패: {e}","s3:GetBucketLogging 권한 확인")
+            return self._make_result(
+                check_id="S3-05",
+                name="서버 액세스 로깅",
+                severity=LOW,
+                resource_id=name,
+                status=WARN,
+                detail=f"조회 실패: {e}",
+                remediation="s3:GetBucketLogging 권한 확인"
+            )
 
     # S3-06 ──────────────────────────────────────────
     def _check_acl(self, s3, name):
@@ -164,11 +310,30 @@ class S3Checker(BaseChecker):
                 elif uri == AUTH_USERS:
                     vulns.append(f"인증된 모든 AWS 계정에게 '{perm}' 허용")
             if vulns:
-                return self._make_result("S3-06","ACL 퍼블릭 허용",HIGH,name,
-                    FAIL,"; ".join(vulns),
-                    f"aws s3api put-bucket-acl --bucket {name} --acl private")
-            return self._make_result("S3-06","ACL 퍼블릭 허용",HIGH,name,
-                PASS,"외부 접근 ACL 없음")
+                return self._make_result(
+                    check_id="S3-06",
+                    name="ACL 퍼블릭 허용",
+                    severity=HIGH,
+                    resource_id=name,
+                    status=FAIL,
+                    detail="; ".join(vulns),
+                    remediation=f"aws s3api put-bucket-acl --bucket {name} --acl private"
+                )
+            return self._make_result(
+                check_id="S3-06",
+                name="ACL 퍼블릭 허용",
+                severity=HIGH,
+                resource_id=name,
+                status=PASS,
+                detail="외부 접근 ACL 없음"
+            )
         except Exception as e:
-            return self._make_result("S3-06","ACL 퍼블릭 허용",HIGH,name,
-                WARN,f"조회 실패: {e}","s3:GetBucketAcl 권한 확인")
+            return self._make_result(
+                check_id="S3-06",
+                name="ACL 퍼블릭 허용",
+                severity=HIGH,
+                resource_id=name,
+                status=WARN,
+                detail=f"조회 실패: {e}",
+                remediation="s3:GetBucketAcl 권한 확인"
+            )
